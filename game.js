@@ -1,4 +1,4 @@
-const APP_VERSION = '0.5.0';
+const APP_VERSION = '0.5.1';
 
 // Trwały zapis na urządzeniu (localStorage) - bezpieczny fallback, gdy niedostępny
 const store = {
@@ -98,18 +98,21 @@ document.querySelectorAll('.mute-btn').forEach(b => b.addEventListener('click', 
 }));
 // iOS/Safari: odblokuj Web Audio przy pierwszym dotknięciu, żeby pierwszy klik w menu był słyszalny
 function unlockAudio(){
-  try{ const ctx = ac(); const b = ctx.createBuffer(1,1,22050); const s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0); }catch(e){}
+  try{ const ctx = ac(); if(!ctx) return; const b = ctx.createBuffer(1,1,22050); const s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0); }catch(e){}
   document.removeEventListener('pointerdown', unlockAudio, true);
 }
 document.addEventListener('pointerdown', unlockAudio, true);
 function ac(){
-  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if(!AC) return null;
+  if(!audioCtx){ try{ audioCtx = new AC(); }catch(e){ return null; } }
   if(audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
 }
 function tone(freq, delay, dur, type, vol){
   if(muted) return;
   const ctx = ac();
+  if(!ctx) return;
   const t0 = ctx.currentTime + delay;
   const osc = ctx.createOscillator();
   const g = ctx.createGain();
@@ -391,19 +394,24 @@ function renderTray(){
         } else d.className = 'pcell empty';
         el.appendChild(d);
       }
+      const wrap = document.createElement('div');
+      wrap.className = 'piece-wrap';
+      wrap.appendChild(el);
+      slot.appendChild(wrap);
       const fits = affordableFits(p);
       if(!fits){
         el.classList.add('disabled');
-        slot.appendChild(el);
+        const nw = document.createElement('div');
+        nw.className = 'nofit-wrap';
         const warn = document.createElement('div');
         warn.className = 'nofit'; warn.textContent = t('nofit');
-        slot.appendChild(warn);
+        nw.appendChild(warn);
+        slot.appendChild(nw);
       } else {
         el.addEventListener('pointerdown', e => startDrag(e, idx));
-        slot.appendChild(el);
         const rb = document.createElement('button');
         rb.className = 'rot-btn' + (p.rotUnlocked ? ' unlocked' : '');
-        rb.innerHTML = '&#8635;';
+        rb.innerHTML = '<span class="ri">&#8635;</span><span>' + t(p.rotUnlocked ? 'rotateFree' : 'rotate') + '</span>';
         rb.disabled = !p.rotUnlocked && rotTokens === 0;
         rb.title = p.rotUnlocked ? t('rotFreeTip') : t('rotUnlockTip');
         rb.addEventListener('click', ev => { ev.stopPropagation(); rotatePiece(idx); });
