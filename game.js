@@ -1,5 +1,3 @@
-const APP_VERSION = '0.5.1';
-
 // Trwały zapis na urządzeniu (localStorage) - bezpieczny fallback, gdy niedostępny
 const store = {
   get(k, d){ try{ const v = localStorage.getItem('blokado:'+k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
