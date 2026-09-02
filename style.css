@@ -3,8 +3,10 @@
     --stone:#141221; --text:#F5F2FF; --muted:#9A93B8;
     --c1:#FF6B6B; --c2:#FFC145; --c3:#4ECDC4; --c4:#5AA9E6; --c5:#B388EB; --c6:#9BDE7E;
   }
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html{background:var(--bg);min-height:100%}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+  html{background:var(--bg);min-height:100%;touch-action:manipulation}
+  body.dragging{touch-action:none}
+  #board,#tray,.piece-slot,.piece,.pcell,#bomb-slot,#powerbar-row{touch-action:none}
   body{
     min-height:100%;
     background:radial-gradient(1100px 700px at 50% -12%, var(--bg-top), var(--bg) 70%) fixed;

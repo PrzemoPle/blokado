@@ -85,6 +85,22 @@ const segs = document.querySelectorAll('.seg');
 const menuEl = document.getElementById('menu');
 const tutEl = document.getElementById('tut');
 
+// ================= Dotyk: blokada zoomu / lupki (iOS) =================
+document.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});
+document.addEventListener('gesturechange', e => e.preventDefault(), {passive:false});
+['touchstart','touchmove'].forEach(evt => {
+  document.addEventListener(evt, e => {
+    if(e.target.closest && e.target.closest('button,a')) return;
+    if(dragging || e.touches.length > 1 || (e.target.closest && e.target.closest('#board,#tray,#bomb-slot,#powerbar-row'))) e.preventDefault();
+  }, {passive:false});
+});
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if(now - lastTouchEnd < 350 && !(e.target.closest && e.target.closest('button,a'))) e.preventDefault();
+  lastTouchEnd = now;
+}, {passive:false});
+
 // ================= Dźwięk =================
 let audioCtx = null, muted = store.get('muted', false);
 document.body.classList.toggle('muted', muted);
@@ -276,6 +292,7 @@ function newGame(){
   boardEl.classList.remove('dim');
   updateTokens(); updateBar();
   renderBoard();
+  traySig = '';
   refillTray();
   overlay.classList.remove('show');
 }
@@ -370,7 +387,15 @@ function spawnIce(){
   sndIce();
 }
 
-function renderTray(){
+let traySig = '', trayPending = false;
+function traySignature(){
+  return pieces.map(p => p.used ? 'u' : (p.cells.map(c=>c.join('.')).join('|') + p.color + p.goldIdx + (p.rotUnlocked?'R':'') + (affordableFits(p)?'F':'') + (fitsAnywhereCells(p.cells)?'f':''))).join('#') + rotTokens + lang;
+}
+function renderTray(force){
+  if(dragging){ trayPending = true; return; }
+  const sig = traySignature();
+  if(!force && sig === traySig && trayEl.children.length === pieces.length) return;
+  traySig = sig; trayPending = false;
   trayEl.innerHTML = '';
   pieces.forEach((p,idx)=>{
     const slot = document.createElement('div');
@@ -490,8 +515,10 @@ function startDrag(e, idx){
   }
 
   const touchLift = e.pointerType === 'touch' ? 70 : 0;
-  dragging = {idx, p, isBomb, cellSize, touchLift,
+  dragging = {idx, p, isBomb, cellSize, touchLift, pointerId: e.pointerId, target: e.currentTarget,
               gw: cols*cellSize + (cols-1)*4, gh: rows*cellSize + (rows-1)*4};
+  document.body.classList.add('dragging');
+  try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(err){}
   moveDrag(e);
   window.addEventListener('pointermove', moveDrag, {passive:false});
   window.addEventListener('pointerup', endDrag);
@@ -559,8 +586,11 @@ function endDrag(e){
   const tc = targetCell(x,y);
   const d = dragging;
   dragging = null;
+  document.body.classList.remove('dragging');
+  try{ d.target.releasePointerCapture(d.pointerId); }catch(err){}
   ghostEl.style.display = 'none';
   clearPreview();
+  if(trayPending) renderTray(true);
   if(!tc){ sndBad(); return; }
   if(d.isBomb){ detonate(tc.r, tc.c, e); return; }
   if(canPlace(d.p.cells, tc.r, tc.c)) placePiece(d.idx, tc.r, tc.c, e);
