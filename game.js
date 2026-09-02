@@ -748,6 +748,42 @@ function checkGameOver(){
   }
 }
 
+// ================= Instalacja (PWA) =================
+const isStandalone = (window.matchMedia ? window.matchMedia('(display-mode: standalone)').matches : false) || navigator.standalone === true;
+if(isStandalone) document.body.classList.add('standalone');
+const UA = navigator.userAgent || '';
+const isIOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/.test(UA);
+const isIOSSafari = isIOS && /Safari/.test(UA) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/.test(UA);
+let deferredInstall = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; });
+window.addEventListener('appinstalled', () => { deferredInstall = null; document.body.classList.add('standalone'); document.getElementById('install').classList.remove('show'); });
+
+function renderInstall(){
+  const steps = t('instSteps'), intro = t('instIntro');
+  const nativeBtn = document.getElementById('inst-native');
+  const introEl = document.getElementById('inst-intro');
+  const list = document.getElementById('inst-steps');
+  let key, introTxt;
+  if(isStandalone){ list.innerHTML = ''; introEl.textContent = t('installedNote'); nativeBtn.style.display = 'none'; return; }
+  if(isIOS){ key = 'ios'; introTxt = intro.ios + (isIOSSafari ? '' : ' ' + t('instNotSafari')); }
+  else if(isAndroid){ key = deferredInstall ? 'androidNative' : 'android'; introTxt = intro.android; }
+  else { key = deferredInstall ? 'desktopNative' : 'desktop'; introTxt = intro.desktop; }
+  introEl.textContent = introTxt;
+  list.innerHTML = steps[key].map(s => '<li>' + s + '</li>').join('');
+  nativeBtn.style.display = deferredInstall ? 'inline-block' : 'none';
+}
+document.getElementById('install-btn').addEventListener('click', ()=>{ sndUi(); renderInstall(); document.getElementById('install').classList.add('show'); });
+document.getElementById('inst-close').addEventListener('click', ()=>{ sndUi(); document.getElementById('install').classList.remove('show'); });
+document.getElementById('inst-native').addEventListener('click', async ()=>{
+  sndUi();
+  if(!deferredInstall) return;
+  deferredInstall.prompt();
+  try{ await deferredInstall.userChoice; }catch(e){}
+  deferredInstall = null;
+  renderInstall();
+});
+
 // ================= Share / restart =================
 document.getElementById('share').addEventListener('click', function(){
   sndUi();
