@@ -172,6 +172,26 @@
   .credits{margin-top:8px;opacity:.85}
   .credits a{color:var(--c4);text-decoration:none;border-bottom:1px dotted var(--c4)}
 
+  /* Duże ekrany (iPad, desktop): plansza rośnie zamiast tonąć w pustce.
+     Skala liczona z wysokości okna, żeby całość zawsze mieściła się bez przewijania. */
+  @media (min-width: 700px) and (min-height: 800px){
+    header, #statusbar, #board-wrap, #powerbar-row, #tray, footer{
+      width:min(min(560px, 62vh), 100%);
+      max-width:100%;
+    }
+    header .logo{font-size:30px}
+    .score-box .val{font-size:26px}
+    .piece-slot{min-height:calc(min(560px, 62vh) * 0.34)}
+    .piece-wrap{min-height:calc(min(560px, 62vh) * 0.2)}
+    .pcell{width:24px;height:24px;border-radius:7px}
+    .rot-btn{min-height:42px;font-size:14px}
+    .rot-btn .ri{font-size:19px}
+    .cell{border-radius:9px}
+    #bomb-slot{width:54px;height:54px}
+    .seg{height:14px}
+    footer{font-size:12px}
+  }
+
   @media (prefers-reduced-motion: reduce){
     .deco,.tv-cell.pulse,#bomb-slot.ready,.nofit{animation:none}
   }
