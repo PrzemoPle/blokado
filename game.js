@@ -67,11 +67,15 @@ function todaySeed(){
   const d = new Date();
   return d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
 }
+// Tryb dzienny: osobne ziarno dla każdej tacki i każdego lodu. Przelosowanie rozdania
+// albo pozycja lodu zależą od planszy gracza, więc wspólny strumień RNG rozjeżdżałby
+// kolejne rozdania między graczami - tak rozjazd nie wychodzi poza jedną tackę.
+function dailyRng(salt){ return mulberry32(dailySeed*1000 + salt); }
 
 // ================= Stan =================
 let board, stars, score, best = Object.assign({simple:0, advanced:0, daily:0}, store.get('best', {})), streak = 0;
 let pieces = [], dragging = null, gameOver = false, mode = null, rng = Math.random;
-let rotTokens, monoCharge, bombReady, refillCount, currentLayoutIdx = null;
+let rotTokens, monoCharge, bombReady, refillCount, currentLayoutIdx = null, dailySeed = 0;
 let tutorialSeen = store.get('tutorialSeen', false);
 
 const boardEl = document.getElementById('board');
@@ -169,8 +173,14 @@ document.querySelectorAll('.mode-card').forEach(b=>{
   });
 });
 document.getElementById('howto-btn').addEventListener('click', ()=>{ sndUi(); showTutorial(null); });
-document.getElementById('menu-btn').addEventListener('click', ()=>{ sndUi(); overlay.classList.remove('show'); menuEl.classList.add('show'); });
-document.getElementById('to-menu').addEventListener('click', ()=>{ sndUi(); overlay.classList.remove('show'); menuEl.classList.add('show'); });
+document.getElementById('menu-btn').addEventListener('click', ()=>{ sndUi(); overlay.classList.remove('show'); showMenu(); });
+document.getElementById('to-menu').addEventListener('click', ()=>{ sndUi(); overlay.classList.remove('show'); showMenu(); });
+document.getElementById('continue-btn').addEventListener('click', ()=>{ sndUi(); menuEl.classList.remove('show'); checkGameOver(); });
+
+function showMenu(){
+  document.getElementById('continue-btn').classList.toggle('show', !!(mode && board && !gameOver));
+  menuEl.classList.add('show');
+}
 
 function startMode(m){
   mode = m;
@@ -272,7 +282,8 @@ function setLayoutLabel(){
 
 function newGame(){
   if(mode === 'daily' && store.get('dailyDate', '') !== todayStr()){ best.daily = 0; store.set('dailyDate', todayStr()); store.set('best', best); }
-  rng = (mode === 'daily') ? mulberry32(todaySeed()) : Math.random;
+  dailySeed = todaySeed();
+  rng = (mode === 'daily') ? mulberry32(dailySeed) : Math.random;
   let layoutIdx;
   if(mode === 'simple') layoutIdx = 0;
   else if(mode === 'advanced') layoutIdx = 1 + Math.floor(rng()*(LAYOUTS.length-1));
@@ -295,6 +306,7 @@ function newGame(){
   traySig = '';
   refillTray();
   overlay.classList.remove('show');
+  saveGame();
 }
 
 function updateScore(add){
@@ -358,6 +370,7 @@ function genPiece(){
 
 function refillTray(){
   refillCount++;
+  if(mode === 'daily') rng = dailyRng(refillCount*2);
   // Uczciwe rozdanie: max JEDEN duży klocek (6+ pól) na tackę,
   // a jeśli świeże rozdanie w całości nie pasuje - przelosuj (do 5 prób).
   // W trybie dziennym determinizm zachowany (przelosowania z tego samego ziarna).
@@ -381,9 +394,10 @@ function spawnIce(){
   const empty = [];
   for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(board[r][c]===null) empty.push([r,c]);
   if(empty.length < 20) return;
+  if(mode === 'daily') rng = dailyRng(refillCount*2 + 1);
   const [r,c] = empty[Math.floor(rng()*empty.length)];
   board[r][c] = {t:'b', color:'#7FB8D8', kind:'i', hp:2};
-  renderBoard();
+  if(!clearTimer) renderBoard(); // w trakcie animacji czyszczenia planszę odświeży animateClear
   sndIce();
 }
 
@@ -456,6 +470,7 @@ function rotatePiece(idx){
   p.cells = rotateCells(p.cells);
   sndRotate();
   renderTray();
+  saveGame();
 }
 
 function canPlace(cells, r0, c0){
@@ -611,6 +626,7 @@ function detonate(r0, c0, e){
   }
   sndBomb();
   updateScore(destroyed * BOMB_PER_CELL);
+  saveGame();
   showFloatText(e, t('boom') + ' +' + (destroyed*BOMB_PER_CELL), '');
   setTimeout(()=>{ renderBoard(); renderTray(); checkGameOver(); }, 320);
 }
@@ -678,6 +694,7 @@ function placePiece(idx, r0, c0, e){
 
   if(pieces.every(x=>x.used)) refillTray();
   else renderTray();
+  saveGame();
 
   setTimeout(checkGameOver, nLines > 0 ? 350 : 50);
 }
@@ -721,6 +738,10 @@ function collectLineCells(lines){
   return s;
 }
 
+// Stan planszy zmienia się od razu, animacja jest tylko wizualna. Dzięki temu nowa
+// tacka, przelosowanie "uczciwego rozdania" i koniec gry liczą się na planszy PO
+// wyczyszczeniu linii (wcześniej przez 300 ms wszystkie klocki świeciły "nie pasuje").
+let clearTimer = null;
 function animateClear(lines){
   const toClear = collectLineCells(lines);
   let anyIce = false;
@@ -728,20 +749,13 @@ function animateClear(lines){
     const [r,c] = key.split(',').map(Number);
     const v = board[r][c];
     if(!v || v.t === 'stone') return;
-    if(v.kind === 'i' && v.hp > 1){ anyIce = true; return; }
+    if(v.kind === 'i' && v.hp > 1){ v.hp--; anyIce = true; return; }
+    board[r][c] = null;
     cellAt(r,c).classList.add('clearing');
   });
   if(anyIce) sndIce();
-  setTimeout(()=>{
-    toClear.forEach(key=>{
-      const [r,c] = key.split(',').map(Number);
-      const v = board[r][c];
-      if(!v || v.t === 'stone') return;
-      if(v.kind === 'i' && v.hp > 1){ v.hp--; return; }
-      board[r][c] = null;
-    });
-    renderBoard();
-  }, 300);
+  clearTimeout(clearTimer);
+  clearTimer = setTimeout(()=>{ clearTimer = null; renderBoard(); }, 300);
 }
 
 function showFloat(e, nLines, lineBonus, monoLines, monoBonus, goldCleared, goldBonus){
@@ -765,6 +779,7 @@ function checkGameOver(){
   const alive = pieces.filter(p=>!p.used);
   if(alive.length && alive.every(p=>!affordableFits(p)) && !bombReady){
     gameOver = true;
+    clearSave();
     boardEl.classList.add('dim');
     sndGameOver();
     setTimeout(()=>{
@@ -777,6 +792,35 @@ function checkGameOver(){
     renderTray();
   }
 }
+
+// ================= Zapis partii =================
+// iOS regularnie ubija WKWebView w tle, a odświeżenie strony kasowało partię.
+// Zapis po każdym ruchu i przy chowaniu strony; w menu pojawia się "Kontynuuj grę".
+const SAVE_VER = 1;
+function saveGame(){
+  if(!mode || !board || gameOver) return;
+  store.set('save', {v:SAVE_VER, mode, dailySeed, layout:currentLayoutIdx, board, stars:[...stars], score, streak,
+                     pieces, rotTokens, monoCharge, bombReady, refillCount});
+}
+function clearSave(){ store.set('save', null); }
+function loadSave(){
+  const s = store.get('save', null);
+  if(!s || s.v !== SAVE_VER || !['simple','advanced','daily'].includes(s.mode)) return false;
+  if(s.mode === 'daily' && s.dailySeed !== todaySeed()){ clearSave(); return false; }
+  try{
+    if(!Array.isArray(s.board) || s.board.length !== N || !Array.isArray(s.pieces) || s.pieces.length !== 3) throw new Error('save');
+    mode = s.mode; dailySeed = s.dailySeed; currentLayoutIdx = s.layout;
+    board = s.board; stars = new Set(s.stars); score = s.score; streak = s.streak; pieces = s.pieces;
+    rotTokens = s.rotTokens; monoCharge = s.monoCharge; bombReady = s.bombReady; refillCount = s.refillCount;
+    gameOver = false; rng = Math.random; // tryb dzienny i tak losuje z ziarna per tacka
+    scoreEl.textContent = score; bestEl.textContent = best[mode];
+    setLayoutLabel(); updateTokens(); updateBar(); renderBoard();
+    traySig = ''; renderTray(true);
+    return true;
+  }catch(e){ mode = null; board = undefined; pieces = []; clearSave(); return false; }
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden') saveGame(); });
+window.addEventListener('pagehide', saveGame);
 
 // ================= Instalacja (PWA) =================
 const isStandalone = (window.matchMedia ? window.matchMedia('(display-mode: standalone)').matches : false) || navigator.standalone === true;
@@ -836,3 +880,5 @@ document.getElementById('restart').addEventListener('click', ()=>{ sndUi(); newG
 // ================= Start =================
 document.getElementById('version').textContent = 'v' + APP_VERSION;
 applyLang();
+loadSave();
+showMenu();

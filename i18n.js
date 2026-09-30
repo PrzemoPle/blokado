@@ -4,7 +4,7 @@ const CC_LINK = '<a href="https://claude.com/claude-code" target="_blank" rel="n
 
 const I18N = {
   pl: {
-    score:'Wynik', best:'Rekord', colorbar:'Pasek koloru', board:'Plansza',
+    resume:'Kontynuuj grę', score:'Wynik', best:'Rekord', colorbar:'Pasek koloru', board:'Plansza',
     nofit:'nie pasuje', gameOver:'Koniec gry',
     gameOverWhy:'Żaden z klocków nie mieści się już na planszy',
     points:'punktów', newRecord:'Nowy rekord!', again:'Zagraj ponownie',
@@ -41,7 +41,7 @@ const I18N = {
     ]
   },
   en: {
-    score:'Score', best:'Best', colorbar:'Color bar', board:'Board',
+    resume:'Continue game', score:'Score', best:'Best', colorbar:'Color bar', board:'Board',
     nofit:'no fit', gameOver:'Game over',
     gameOverWhy:'No piece fits on the board anymore',
     points:'points', newRecord:'New best!', again:'Play again',
@@ -78,7 +78,7 @@ const I18N = {
     ]
   },
   de: {
-    score:'Punkte', best:'Rekord', colorbar:'Farbleiste', board:'Feld',
+    resume:'Spiel fortsetzen', score:'Punkte', best:'Rekord', colorbar:'Farbleiste', board:'Feld',
     nofit:'passt nicht', gameOver:'Spiel vorbei',
     gameOverWhy:'Kein Block passt mehr auf das Feld',
     points:'Punkte', newRecord:'Neuer Rekord!', again:'Nochmal spielen',
@@ -115,7 +115,7 @@ const I18N = {
     ]
   },
   fr: {
-    score:'Score', best:'Record', colorbar:'Barre de couleur', board:'Plateau',
+    resume:'Reprendre la partie', score:'Score', best:'Record', colorbar:'Barre de couleur', board:'Plateau',
     nofit:'ne rentre pas', gameOver:'Partie terminée',
     gameOverWhy:'Plus aucune pièce ne rentre sur le plateau',
     points:'points', newRecord:'Nouveau record !', again:'Rejouer',

@@ -35,9 +35,10 @@
   }
   .icon-btn:active{transform:translateY(1px)}
   .icon-btn svg{display:block}
-  .snd-off{display:none}
-  body.muted .snd-on{display:none}
-  body.muted .snd-off{display:block}
+  /* .icon-btn prefix: musi przebić specyficznością .icon-btn svg{display:block} */
+  .icon-btn .snd-off{display:none}
+  body.muted .icon-btn .snd-on{display:none}
+  body.muted .icon-btn .snd-off{display:block}
   .menu-mute{position:absolute;top:12px;right:12px}
   .version{margin-top:14px;font-size:11px;font-weight:800;color:var(--muted);opacity:.6;letter-spacing:.3px}
   .scores{display:flex;gap:12px;text-align:right}
@@ -123,6 +124,8 @@
   button.big.alt{background:var(--c4);box-shadow:inset 0 3px 0 rgba(255,255,255,.3), 0 4px 0 #3D7DB0}
   button.big.ghost{background:var(--slot);box-shadow:inset 0 2px 0 var(--slot-line);color:var(--muted)}
   button.big:active{transform:translateY(3px)}
+  #continue-btn{display:none;width:100%;margin:0 0 14px}
+  #continue-btn.show{display:block}
 
   /* MENU */
   #menu .panel{padding:36px 28px 30px;position:relative;overflow:visible}
